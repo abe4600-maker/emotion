@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>感情記録・自己調整ツール</title>
+    <!-- Chart.js for Dashboards and Analysis -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #f1f5f9;
+            --card-bg: #ffffff;
+            --text-color: #1e293b;
+            --border-color: #cbd5e1;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            -webkit-text-size-adjust: 100%;
+        }
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 0.8rem 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 1.1rem;
+            margin: 0 0 0.5rem 0;
+            text-align: center;
+        }
+        nav {
+            display: flex;
+            overflow-x: auto;
+            gap: 0.4rem;
+            padding-bottom: 0.3rem;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        nav::-webkit-scrollbar { display: none; }
+        nav button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.5rem 0.8rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        nav button.active, nav button:hover {
+            background: white;
+            color: var(--primary);
+            font-weight: bold;
+        }
+        main {
+            max-width: 600px;
+            margin: 1rem auto;
+            background: var(--card-bg);
+            padding: 1.2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgb(0 0 0 / 0.05);
+        }
+        main:has(#tasks.active) {
+            max-width: 950px;
+        }
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+        h2 { 
+            font-size: 1.1rem; 
+            border-bottom: 2px solid var(--border-color); 
+            padding-bottom: 0.4rem; 
+            margin-top: 0; 
+            color: var(--primary);
+        }
+        h3 { font-size: 0.95rem; margin-top: 1.5rem; color: #334155; background: #e2e8f0; padding: 0.4rem; border-radius: 4px; }
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; font-weight: bold; margin-bottom: 0.3rem; font-size: 0.85rem; color: #475569; }
+        input, select, textarea {
+            width: 100%;
+            padding: 0.7rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1rem;
+            background-color: #fff;
+        }
+        textarea { resize: vertical; height: 70px; }
+        button.btn-submit {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 0.85rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        button.btn-submit:active { background-color: var(--primary-hover); }
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin-top: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 500px;
+        }
+        #tasksTable {
+            min-width: 750px;
+        }
+        #tasksTable th, #tasksTable td {
+            padding: 0.5rem;
+        }
+        #tasksTable input[type="text"] {
+            width: 100%;
+            padding: 0.4rem 0.5rem;
+            font-size: 0.85rem;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 0.6rem;
+            text-align: left;
+            font-size: 0.85rem;
+        }
+        th { background-color: #f1f5f9; }
+        .filters { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-direction: column; }
+        @media(min-width: 480px) {
+            .filters { flex-direction: row; flex-wrap: wrap; }
+            .filters > div { flex: 1; min-width: 140px; }
+        }
+        .chart-container { position: relative; height: 260px; margin-bottom: 1.5rem; cursor: pointer; }
+        .choice-box {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 0.8rem;
+            margin-bottom: 0.8rem;
+            border-radius: 8px;
+        }
+        .search-result-card {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 0.8rem;
+            border-radius: 8px;
+            margin-bottom: 0.8rem;
+        }
+        .search-result-card p { margin: 0.3rem 0; font-size: 0.85rem; }
+        .btn-delete {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.3rem 0.6rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.75rem;
+        }
+        .btn-delete-record {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            width: 100%;
+            padding: 0.7rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+        .bottom-list-box {
+            margin-top: 2rem;
+            border-top: 2px dashed var(--border-color);
+            padding-top: 1rem;
+        }
+        .analysis-summary-box {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>感情記録ツール</h1>
+    <nav>
+        <button onclick="switchView('reg-deep')" class="active" id="nav_reg_deep">①1〜3段目</button>
+        <button onclick="switchView('search-view')" id="nav_search">🔍 検索</button>
+        <button onclick="switchView('critique-self')" id="nav_critique">②4・5段目</button>
+        <button onclick="switchView('choice-action')" id="nav_choice">③6・7段目</button>
+        <button onclick="switchView('tasks')" id="nav_tasks">今やること</button>
+        <button onclick="switchView('future-tasks')" id="nav_future_tasks">今後やる</button>
+        <button onclick="switchView('no-tasks')" id="nav_no_tasks">やらない</button>
+        <button onclick="switchView('dashboard')" id="nav_dashboard">ダッシュボード</button>
+        <button onclick="switchView('analysis')" id="nav_analysis">分析</button>
+    </nav>
+</header>
+
+<main>
+    <!-- ① 1〜3段目 -->
+    <section id="reg-deep" class="view-section active">
+        <h2>1〜3段目：初期登録・認知・論理的思考</h2>
+        <div class="form-group" style="background:#f8fafc; padding:0.5rem; border-radius:6px; margin-bottom:1rem;">
+            <label>📝 既存データの編集（または新規追加）</label>
+            <select id="target_record_id" onchange="loadSelectedRecord()">
+                <option value="">＋ 新規で登録する</option>
+            </select>
+        </div>
+        <form id="combinedRegForm" onsubmit="saveRegDeepRecord(event)">
+            <h3>1段目：反応思考の記録</h3>
+            <div class="form-group"><label>発生日付</label><input type="date" id="reg_date" required></div>
+            <div class="form-group">
+                <label>状況分類</label>
+                <select id="reg_category" onchange="updateSubCategory()" required>
+                    <option value="">選択してください</option>
+                    <option value="仕事">仕事</option>
+                    <option value="家族">家族</option>
+                    <option value="個人">個人</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>属性分類（内訳）</label>
+                <select id="reg_subcategory" required><option value="">状況分類を先に選んでください</option></select>
+            </div>
+            <div class="form-group"><label>タイトル</label><input type="text" id="reg_title" placeholder="例: クレーム対応の件" required></div>
+            <div class="form-group"><label>発生状況（メモ）</label><textarea id="reg_situation_memo"></textarea></div>
+            <div class="form-group">
+                <label>思考分類</label>
+                <select id="reg_thought_type" required>
+                    <option value="不安定">不安定</option>
+                    <option value="不安（怒り）">不安（怒り）</option>
+                    <option value="不安（焦り）">不安（焦り）</option>
+                    <option value="不安（寂しさ）">不安（寂しさ）</option>
+                    <option value="不安（心配）">不安（心配）</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>不安レベル</label>
+                <select id="reg_anxiety_level">
+                    <option value="Lv1">Lv1</option>
+                    <option value="Lv2">Lv2</option>
+                    <option value="Lv3" selected>Lv3</option>
+                    <option value="Lv4">Lv4</option>
+                    <option value="Lv5">Lv5</option>
+                </select>
+            </div>
+            <div class="form-group"><label>発生内容（メモ）</label><textarea id="reg_content_memo"></textarea></div>
+            <div class="form-group"><label>初回対応の記録</label><textarea id="reg_first_action"></textarea></div>
+
+            <h3>2・3段目：認知・論理的思考</h3>
+            <div class="form-group"><label>「なぜそう思う」のメモ</label><textarea id="dep_why"></textarea></div>
+            <div class="form-group"><label>原因（メモ）</label><textarea id="dep_cause"></textarea></div>
+            <div class="form-group"><label>事実項目（メモ）</label><textarea id="dep_fact"></textarea></div>
+            <div class="form-group"><label>予測項目（メモ）</label><textarea id="dep_predict"></textarea></div>
+
+            <button type="submit" class="btn-submit">この内容を保存する</button>
+            <button type="button" id="btnDeleteRecord" class="btn-delete-record" style="display:none;" onclick="deleteCurrentRecord()">この記録を削除する</button>
+        </form>
+
+        <div class="bottom-list-box">
+            <h3>📋 登録済み一覧（1〜3段目）</h3>
+            <div class="table-wrapper">
+                <table id="bottomRegTable">
+                    <thead>
+                        <tr>
+                            <th>発生日</th>
+                            <th>タイトル</th>
+                            <th>分類</th>
+                            <th>不安Lv</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 文字検索画面 -->
+    <section id="search-view" class="view-section">
+        <h2>過去の記録・不安事項の検索</h2>
+        <div class="form-group">
+            <label>キーワード（部分一致）</label>
+            <input type="text" id="search_keyword" placeholder="例: 仕事, 不安, Lv1 など" oninput="executeSearch()">
+        </div>
+        <div id="search_results_container" style="margin-top: 1rem;"></div>
+    </section>
+
+    <!-- ② 4・5段目 -->
+    <section id="critique-self" class="view-section">
+        <h2>4・5段目：批判的思考・自己認識思考</h2>
+        <div class="form-group">
+            <label>対象の記録を選択</label>
+            <select id="critique_target_id" onchange="loadCritiqueRecord()"></select>
+        </div>
+        <form id="critiqueForm" onsubmit="saveCritiqueRecord(event)">
+            <div class="form-group"><label>批判日付</label><input type="date" id="dep_critique_date"></div>
+            <div class="form-group"><label>不安レベル</label>
+                <select id="dep_anxiety_level">
+                    <option value="Lv1">Lv1</option>
+                    <option value="Lv2">Lv2</option>
+                    <option value="Lv3">Lv3</option>
+                    <option value="Lv4">Lv4</option>
+                    <option value="Lv5">Lv5</option>
+                </select>
+            </div>
+            <div class="form-group"><label>4段目：「本当にそうか？」のメモ</label><textarea id="dep_really"></textarea></div>
+            <div class="form-group"><label>5段目：「自分だけがそう思ってないか？」のメモ</label><textarea id="dep_only_me"></textarea></div>
+            <div class="form-group"><label>まとめ（メモ）</label><textarea id="dep_summary"></textarea></div>
+            <button type="submit" class="btn-submit">批判・自己認識を保存</button>
+            <button type="button" id="btnDeleteCritique" class="btn-delete-record" style="display:none;" onclick="clearCritiqueContent()">この4・5段目の内容をクリア（削除）</button>
+        </form>
+
+        <div class="bottom-list-box">
+            <h3>📋 登録済み一覧（4・5段目）</h3>
+            <div class="table-wrapper">
+                <table id="bottomCritiqueTable">
+                    <thead>
+                        <tr>
+                            <th>批判日</th>
+                            <th>タイトル</th>
+                            <th>本当にそうか？メモ</th>
+                            <th>自分だけか？メモ</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- ③ 6・7段目 -->
+    <section id="choice-action" class="view-section">
+        <h2>6・7段目：全体思考・選択</h2>
+        <div class="form-group">
+            <label>対象の記録を選択</label>
+            <select id="choice_target_id" onchange="loadChoiceRecord()"></select>
+        </div>
+        <form id="choiceForm" onsubmit="saveChoiceRecord(event)">
+            <h3>6段目：何ができるか（最大10個の選択肢）</h3>
+            <div id="choices-container"></div>
+            <h3>7段目：選択・備考</h3>
+            <div class="form-group"><label>備考欄（メモ）</label><textarea id="dep_remarks"></textarea></div>
+            <button type="submit" class="btn-submit">選択内容を保存</button>
+            <button type="button" id="btnDeleteChoice" class="btn-delete-record" style="display:none;" onclick="clearChoiceContent()">この6・7段目の内容をクリア（削除）</button>
+        </form>
+
+        <div class="bottom-list-box">
+            <h3>📋 登録済み一覧（6・7段目）</h3>
+            <div class="table-wrapper">
+                <table id="bottomChoiceTable">
+                    <thead>
+                        <tr>
+                            <th>発生日</th>
+                            <th>タイトル</th>
+                            <th>選択肢（今やる/今後）</th>
+                            <th>備考欄</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- 今やること一覧 -->
+    <section id="tasks" class="view-section">
+        <h2>今やること一覧</h2>
+        <div class="filters">
+            <div>
+                <label>ステータス絞り込み</label>
+                <select id="task_filter_status" onchange="renderTasksTable()">
+                    <option value="未着手・未完" selected>未着手・未完</option>
+                    <option value="すべて">すべて</option>
+                    <option value="未着手">未着手</option>
+                    <option value="完了">完了</option>
+                    <option value="未完">未完</option>
+                </select>
+            </div>
+        </div>
+        <div class="table-wrapper">
+            <table id="tasksTable">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">発生日</th>
+                        <th style="width: 140px;">タイトル</th>
+                        <th style="width: 250px;">選択肢内容 / 実施日</th>
+                        <th style="width: 140px;">進捗結果</th>
+                        <th style="width: 90px;">不安Lv</th>
+                        <th style="width: 130px;">完了結果</th>
+                        <th style="width: 210px;">結果メモ</th>
+                        <th style="width: 70px;">操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- 今後やる一覧 -->
+    <section id="future-tasks" class="view-section">
+        <h2>今後やる一覧</h2>
+        <div class="table-wrapper">
+            <table id="futureTasksTable">
+                <thead>
+                    <tr>
+                        <th>登録日</th>
+                        <th>タイトル</th>
+                        <th>選択肢内容・予定日</th>
+                        <th>アクション変更</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- やらないこと一覧 -->
+    <section id="no-tasks" class="view-section">
+        <h2>やらないこと一覧</h2>
+        <div class="table-wrapper">
+            <table id="noTasksTable">
+                <thead>
+                    <tr>
+                        <th>登録日</th>
+                        <th>タイトル</th>
+                        <th>選択肢内容</th>
+                        <th>アクション変更</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ダッシュボード画面 -->
+    <section id="dashboard" class="view-section">
+        <h2>ダッシュボード</h2>
+        <div class="filters">
+            <div>
+                <label>基準日</label>
+                <input type="date" id="dash_date" onchange="updateDashboard()">
+            </div>
+            <div>
+                <label>不安レベル</label>
+                <select id="dash_anxiety" onchange="updateDashboard()">
+                    <option value="">すべて</option>
+                    <option value="Lv1">Lv1</option>
+                    <option value="Lv2">Lv2</option>
+                    <option value="Lv3">Lv3</option>
+                    <option value="Lv4">Lv4</option>
+                    <option value="Lv5">Lv5</option>
+                </select>
+            </div>
+            <div>
+                <label>状況分類</label>
+                <select id="dash_category" onchange="updateDashboard()">
+                    <option value="">すべて</option>
+                    <option value="仕事">仕事</option>
+                    <option value="家族">家族</option>
+                    <option value="個人">個人</option>
+                    <option value="その他">その他</option>
+                </select>
+            </div>
+        </div>
+        <div style="background:#f8fafc; padding:1rem; border-radius:8px; margin-bottom:1rem; border:1px solid var(--border-color);">
+            <h3 style="margin-top:0;">集計サマリー</h3>
+            <p>初期登録数 合計: <span id="summary_total_count">0</span> 件</p>
+            <p><strong>完了項目の内訳割合:</strong></p>
+            <ul style="margin:0.2rem 0; padding-left:1.2rem;">
+                <li>問題なし: <span id="res_none">0</span> 件 (<span id="pct_none">0%</span>)</li>
+                <li>問題あり: <span id="res_exist">0</span> 件 (<span id="pct_exist">0%</span>)</li>
+                <li>保留: <span id="res_hold">0</span> 件 (<span id="pct_hold">0%</span>)</li>
+            </ul>
+        </div>
+        <div class="chart-container"><canvas id="dashChart"></canvas></div>
+    </section>
+
+    <!-- 分析グラフ画面 -->
+    <section id="analysis" class="view-section">
+        <h2>分析グラフ</h2>
+        <div class="filters" style="margin-bottom: 1.5rem;">
+            <div>
+                <label>期間指定</label>
+                <select id="analysis_period" onchange="initAnalysisCharts()">
+                    <option value="1week">直近1週間</option>
+                    <option value="1month" selected>直近1か月</option>
+                    <option value="all">全期間</option>
+                </select>
+            </div>
+        </div>
+        <h3>グラフ1：日付別 進捗ステータス分析</h3>
+        <div class="chart-container"><canvas id="chart1"></canvas></div>
+        <h3>グラフ2：日付別 完了結果分析</h3>
+        <div class="chart-container"><canvas id="chart2"></canvas></div>
+        <h3>グラフ3：不安数値グラフ</h3>
+        <div class="analysis-summary-box" id="analysis_anxiety_summary">
+            📊 選択期間の平均不安数値: <strong><span id="avg_anxiety_val">0.0</span></strong> (総記録数: <span id="total_anxiety_count">0</span>件)
+        </div>
+        <div class="chart-container"><canvas id="chart3"></canvas></div>
+    </section>
+</main>
+
+<script>
+    const subCategories = {
+        "仕事": ["会社", "営業", "事務処理", "顧客", "イベント", "その他"],
+        "家族": ["金銭", "しの", "ちかげ", "イベント", "その他"],
+        "個人": ["健康", "メンタル", "KEM", "性質", "行動", "その他"],
+        "その他": ["その他"]
+    };
+
+    function updateSubCategory() {
+        const cat = document.getElementById('reg_category').value;
+        const subSelect = document.getElementById('reg_subcategory');
+        subSelect.innerHTML = "";
+        if(subCategories[cat]) {
+            subCategories[cat].forEach(sub => {
+                let opt = document.createElement('option');
+                opt.value = sub;
+                opt.textContent = sub;
+                subSelect.appendChild(opt);
+            });
+        }
+    }
+
+    let records = JSON.parse(localStorage.getItem('emotion_records') || '[]');
+    let currentEditingId = null;
+
+    records.forEach(r => {
+        if(r.anxiety_level && !r.anxiety_level.startsWith('Lv')) {
+            r.anxiety_level = 'Lv' + r.anxiety_level;
+        }
+        if(r.deepen && r.deepen.anxiety_level && !r.deepen.anxiety_level.startsWith('Lv')) {
+            r.deepen.anxiety_level = 'Lv' + r.deepen.anxiety_level;
+        }
+        // 移行互換処理：旧データ内の "判断保留" を "保留" に置き換え
+        if(r.deepen && r.deepen.choices) {
+            r.deepen.choices.forEach(c => {
+                if(c.problem === '判断保留') c.problem = '保留';
+            });
+        }
+    });
+
+    function saveData() {
+        localStorage.setItem('emotion_records', JSON.stringify(records));
+    }
+
+    function getJSTTodayString() {
+        const now = new Date();
+        const jstDate = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Tokyo" }));
+        const year = jstDate.getFullYear();
+        const month = String(jstDate.getMonth() + 1).padStart(2, '0');
+        const day = String(jstDate.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    function switchView(viewId) {
+        document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        
+        document.querySelectorAll('nav button').forEach(btn => {
+            if(btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(viewId)) {
+                btn.classList.add('active');
+            }
+        });
+
+        if(viewId === 'search-view') executeSearch();
+        if(viewId === 'reg-deep') { initRecordDropdown(); renderBottomRegTable(); }
+        if(viewId === 'critique-self') { initCritiqueDropdown(); renderBottomCritiqueTable(); }
+        if(viewId === 'choice-action') { initChoiceDropdown(); renderBottomChoiceTable(); }
+        if(viewId === 'tasks') renderTasksTable();
+        if(viewId === 'future-tasks') renderFutureTasksTable();
+        if(viewId === 'no-tasks') renderNoTasksTable();
+        if(viewId === 'dashboard') initDashboard();
+        if(viewId === 'analysis') initAnalysisCharts();
+    }
+
+    document.getElementById('reg_date').value = getJSTTodayString();
+
+    function executeSearch() {
+        const keyword = document.getElementById('search_keyword').value.trim().toLowerCase();
+        const container = document.getElementById('search_results_container');
+        container.innerHTML = "";
+
+        if(records.length === 0) {
+            container.innerHTML = '<p style="color:#64748b; text-align:center;">登録されているデータがありません。</p>';
+            return;
+        }
+
+        const matched = records.filter(r => {
+            if (!keyword) return true;
+            const targetText = [
+                r.reg_date, r.title, r.category, r.subcategory, r.situation_memo,
+                r.thought_type, String(r.anxiety_level), r.content_memo, r.first_action,
+                r.deepen.why, r.deepen.cause, r.deepen.fact, r.deepen.predict,
+                r.deepen.really, r.deepen.only_me, r.deepen.summary, r.deepen.remarks,
+                ...(r.deepen.choices ? r.deepen.choices.map(c => c.text + ' ' + c.problem_memo) : [])
+            ].join(' ').toLowerCase();
+
+            return targetText.includes(keyword);
+        });
+
+        if(matched.length === 0) {
+            container.innerHTML = '<p style="color:#64748b; text-align:center;">一致する記録が見つかりませんでした。</p>';
+            return;
+        }
+
+        matched.forEach(r => {
+            let card = document.createElement('div');
+            card.className = 'search-result-card';
+            card.innerHTML = `
+                <p><strong>📅 発生日:</strong> ${r.reg_date} | <strong>タイトル:</strong> ${r.title || '(未設定)'}</p>
+                <p><strong>📂 分類:</strong> [${r.category} - ${r.subcategory}] (不安Lv: ${r.anxiety_level})</p>
+                <p><strong>📝 発生内容:</strong> ${r.content_memo || '(未記入)'}</p>
+                <p style="text-align:right; margin-top:0.5rem; display:flex; justify-content:flex-end; gap:0.5rem;">
+                    <button onclick="jumpToEdit('${r.id}')" style="background:var(--primary); color:white; border:none; padding:0.3rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem;">この記録を編集する</button>
+                    <button onclick="deleteRecordById('${r.id}')" style="background:#ef4444; color:white; border:none; padding:0.3rem 0.8rem; border-radius:4px; cursor:pointer; font-size:0.8rem;">削除</button>
+                </p>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    function jumpToEdit(id) {
+        currentEditingId = id;
+        document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
+        document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+        document.getElementById('reg-deep').classList.add('active');
+        document.getElementById('nav_reg_deep').classList.add('active');
+        initRecordDropdown();
+        document.getElementById('target_record_id').value = id;
+        loadSelectedRecord();
+    }
+
+    function initRecordDropdown() {
+        const select = document.getElementById('target_record_id');
+        select.innerHTML = '<option value="">＋ 新規で登録する</option>';
+        records.forEach(r => {
+            let opt = document.createElement('option');
+            opt.value = r.id;
+            opt.textContent = r.title ? `${r.reg_date} - ${r.title}` : `${r.reg_date} [無題]`;
+            select.appendChild(opt);
+        });
+        if(currentEditingId) {
+            select.value = currentEditingId;
+        }
+    }
+
+    function clearRegForm() {
+        currentEditingId = null;
+        document.getElementById('combinedRegForm').reset();
+        document.getElementById('reg_date').value = getJSTTodayString();
+        updateSubCategory();
+        document.getElementById('target_record_id').value = "";
+        document.getElementById('btnDeleteRecord').style.display = 'none';
+    }
+
+    function loadSelectedRecord() {
+        const id = document.getElementById('target_record_id').value;
+        const deleteBtn = document.getElementById('btnDeleteRecord');
+        if(!id) { 
+            clearRegForm(); 
+            deleteBtn.style.display = 'none';
+            return; 
+        }
+        currentEditingId = id;
+        deleteBtn.style.display = 'block';
+        const r = records.find(item => item.id === id);
+        if(!r) return;
+
+        document.getElementById('reg_date').value = r.reg_date;
+        document.getElementById('reg_category').value = r.category;
+        updateSubCategory();
+        document.getElementById('reg_subcategory').value = r.subcategory;
+        document.getElementById('reg_title').value = r.title || '';
+        document.getElementById('reg_situation_memo').value = r.situation_memo || '';
+        document.getElementById('reg_thought_type').value = r.thought_type;
+        document.getElementById('reg_anxiety_level').value = r.anxiety_level || 'Lv3';
+        document.getElementById('reg_content_memo').value = r.content_memo || '';
+        document.getElementById('reg_first_action').value = r.first_action || '';
+        document.getElementById('dep_why').value = r.deepen.why || '';
+        document.getElementById('dep_cause').value = r.deepen.cause || '';
+        document.getElementById('dep_fact').value = r.deepen.fact || '';
+        document.getElementById('dep_predict').value = r.deepen.predict || '';
+    }
+
+    function deleteCurrentRecord() {
+        if(!currentEditingId) return;
+        if(confirm('この記録（関連する全ての段やタスクを含む）を完全に削除しますか？')) {
+            records = records.filter(item => item.id !== currentEditingId);
+            saveData();
+            alert('削除しました。');
+            clearRegForm();
+            initRecordDropdown();
+            renderBottomRegTable();
+        }
+    }
+
+    function deleteRecordById(id) {
+        if(confirm('この記録を完全に削除しますか？')) {
+            records = records.filter(item => item.id !== id);
+            saveData();
+            alert('削除しました。');
+            const activeSec = document.querySelector('.view-section.active').id;
+            if(activeSec === 'search-view') executeSearch();
+            if(activeSec === 'reg-deep') { initRecordDropdown(); renderBottomRegTable(); }
+            if(activeSec === 'critique-self') { initCritiqueDropdown(); renderBottomCritiqueTable(); }
+            if(activeSec === 'choice-action') { initChoiceDropdown(); renderBottomChoiceTable(); }
+        }
+    }
+
+    function saveRegDeepRecord(e) {
+        e.preventDefault();
+        const data = {
+            reg_date: document.getElementById('reg_date').value,
+            category: document.getElementById('reg_category').value,
+            subcategory: document.getElementById('reg_subcategory').value,
+            title: document.getElementById('reg_title').value,
+            situation_memo: document.getElementById('reg_situation_memo').value,
+            thought_type: document.getElementById('reg_thought_type').value,
+            anxiety_level: document.getElementById('reg_anxiety_level').value,
+            content_memo: document.getElementById('reg_content_memo').value,
+            first_action: document.getElementById('reg_first_action').value,
+            why: document.getElementById('dep_why').value,
+            cause: document.getElementById('dep_cause').value,
+            fact: document.getElementById('dep_fact').value,
+            predict: document.getElementById('dep_predict').value
+        };
+
+        let activeId = currentEditingId;
+
+        if(activeId) {
+            let r = records.find(item => item.id === activeId);
+            if(r) {
+                r.reg_date = data.reg_date;
+                r.category = data.category;
+                r.subcategory = data.subcategory;
+                r.title = data.title;
+                r.situation_memo = data.situation_memo;
+                r.thought_type = data.thought_type;
+                r.anxiety_level = data.anxiety_level;
+                r.content_memo = data.content_memo;
+                r.first_action = data.first_action;
+                r.deepen.why = data.why;
+                r.deepen.cause = data.cause;
+                r.deepen.fact = data.fact;
+                r.deepen.predict = data.predict;
+            }
+        } else {
+            let newRecord = {
+                id: Date.now().toString(),
+                ...data,
+                deepen: {
+                    anxiety_level: data.anxiety_level, why: data.why, cause: data.cause, fact: data.fact, predict: data.predict,
+                    critique_date: '', really: '', only_me: '', summary: '', remarks: '',
+                    choices: Array.from({length: 10}, () => ({ text: '', action: '今後やる', exec_date: '', result: '未着手', problem: '問題なし', problem_memo: '' }))
+                }
+            };
+            records.push(newRecord);
+            activeId = newRecord.id;
+            currentEditingId = activeId;
+        }
+        saveData();
+        alert('保存しました！');
+
+        initRecordDropdown();
+        renderBottomRegTable();
+        document.getElementById('btnDeleteRecord').style.display = 'block';
+        
+        switchView('critique-self');
+        document.getElementById('critique_target_id').value = activeId;
+        loadCritiqueRecord();
+    }
+
+    function renderBottomRegTable() {
+        const tbody = document.querySelector('#bottomRegTable tbody');
+        if(!tbody) return;
+        tbody.innerHTML = "";
+        records.forEach(r => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.reg_date}</td>
+                <td>${r.title || '(無題)'}</td>
+                <td>${r.category} - ${r.subcategory}</td>
+                <td>${r.anxiety_level}</td>
+                <td>
+                    <button onclick="jumpToEdit('${r.id}')" style="background:var(--primary); color:white; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">編集</button>
+                    <button onclick="deleteRecordById('${r.id}')" class="btn-delete">削除</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function initCritiqueDropdown() {
+        const select = document.getElementById('critique_target_id');
+        let currentVal = select.value;
+        select.innerHTML = '<option value="">選択してください</option>';
+        records.forEach(r => {
+            let opt = document.createElement('option');
+            opt.value = r.id;
+            opt.textContent = r.title ? `${r.reg_date} - ${r.title}` : `${r.reg_date} [無題]`;
+            select.appendChild(opt);
+        });
+        if(currentVal) select.value = currentVal;
+        
+        const deleteBtn = document.getElementById('btnDeleteCritique');
+        if(!select.value) {
+            document.getElementById('critiqueForm').reset();
+            document.getElementById('dep_critique_date').value = getJSTTodayString();
+            deleteBtn.style.display = 'none';
+        } else {
+            deleteBtn.style.display = 'block';
+        }
+        renderBottomCritiqueTable();
+    }
+
+    function loadCritiqueRecord() {
+        const id = document.getElementById('critique_target_id').value;
+        const deleteBtn = document.getElementById('btnDeleteCritique');
+        if(!id) {
+            document.getElementById('critiqueForm').reset();
+            document.getElementById('dep_critique_date').value = getJSTTodayString();
+            deleteBtn.style.display = 'none';
+            return;
+        }
+        deleteBtn.style.display = 'block';
+        const r = records.find(item => item.id === id);
+        if(!r) return;
+        document.getElementById('dep_critique_date').value = r.deepen.critique_date || getJSTTodayString();
+        document.getElementById('dep_anxiety_level').value = r.deepen.anxiety_level || 'Lv3';
+        document.getElementById('dep_really').value = r.deepen.really || '';
+        document.getElementById('dep_only_me').value = r.deepen.only_me || '';
+        document.getElementById('dep_summary').value = r.deepen.summary || '';
+    }
+
+    function clearCritiqueContent() {
+        const id = document.getElementById('critique_target_id').value;
+        if(!id) return;
+        if(confirm('この4・5段目の内容をクリア（削除）しますか？')) {
+            const r = records.find(item => item.id === id);
+            if(r) {
+                r.deepen.critique_date = '';
+                r.deepen.really = '';
+                r.deepen.only_me = '';
+                r.deepen.summary = '';
+                saveData();
+                alert('4・5段目の内容をクリアしました。');
+                loadCritiqueRecord();
+                renderBottomCritiqueTable();
+            }
+        }
+    }
+
+    function deleteCritiqueRow(id) {
+        if(confirm('この4・5段目の内容をクリアしますか？')) {
+            const r = records.find(item => item.id === id);
+            if(r) {
+                r.deepen.critique_date = '';
+                r.deepen.really = '';
+                r.deepen.only_me = '';
+                r.deepen.summary = '';
+                saveData();
+                alert('クリアしました。');
+                renderBottomCritiqueTable();
+                if(document.getElementById('critique_target_id').value === id) {
+                    loadCritiqueRecord();
+                }
+            }
+        }
+    }
+
+    function saveCritiqueRecord(e) {
+        e.preventDefault();
+        const id = document.getElementById('critique_target_id').value;
+        if(!id) {
+            alert('対象の記録を選択してください。');
+            return;
+        }
+        const r = records.find(item => item.id === id);
+        if(!r) return;
+        r.deepen.critique_date = document.getElementById('dep_critique_date').value;
+        r.deepen.anxiety_level = document.getElementById('dep_anxiety_level').value;
+        r.deepen.really = document.getElementById('dep_really').value;
+        r.deepen.only_me = document.getElementById('dep_only_me').value;
+        r.deepen.summary = document.getElementById('dep_summary').value;
+        saveData();
+        alert('批判・自己認識を保存しました！');
+        
+        renderBottomCritiqueTable();
+        document.getElementById('btnDeleteCritique').style.display = 'block';
+
+        switchView('choice-action');
+        document.getElementById('choice_target_id').value = id;
+        loadChoiceRecord();
+    }
+
+    function renderBottomCritiqueTable() {
+        const tbody = document.querySelector('#bottomCritiqueTable tbody');
+        if(!tbody) return;
+        tbody.innerHTML = "";
+        records.forEach(r => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.deepen.critique_date || '-'}</td>
+                <td>${r.title || '(無題)'}</td>
+                <td>${r.deepen.really ? r.deepen.really.slice(0, 15) + '...' : '(未)'}</td>
+                <td>${r.deepen.only_me ? r.deepen.only_me.slice(0, 15) + '...' : '(未)'}</td>
+                <td>
+                    <button onclick="jumpToCritiqueEdit('${r.id}')" style="background:var(--primary); color:white; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">編集</button>
+                    <button onclick="deleteCritiqueRow('${r.id}')" class="btn-delete">クリア</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function jumpToCritiqueEdit(id) {
+        switchView('critique-self');
+        document.getElementById('critique_target_id').value = id;
+        loadCritiqueRecord();
+    }
+
+    function initChoiceDropdown() {
+        const select = document.getElementById('choice_target_id');
+        let currentVal = select.value;
+        select.innerHTML = '<option value="">選択してください</option>';
+        records.forEach(r => {
+            let opt = document.createElement('option');
+            opt.value = r.id;
+            opt.textContent = r.title ? `${r.reg_date} - ${r.title}` : `${r.reg_date} [無題]`;
+            select.appendChild(opt);
+        });
+        if(currentVal) select.value = currentVal;
+
+        const container = document.getElementById('choices-container');
+        const deleteBtn = document.getElementById('btnDeleteChoice');
+        if(!select.value) {
+            container.innerHTML = "";
+            for(let i=0; i<10; i++) {
+                container.innerHTML += `
+                    <div class="choice-box">
+                        <label>選択肢 ${i+1}</label>
+                        <input type="text" id="choice_text_${i}" placeholder="何ができるかの選択肢" style="margin-bottom:0.5rem;">
+                        <div style="display:flex; gap:0.5rem;">
+                            <select id="choice_action_${i}" style="flex:1;" onchange="handleActionChange(${i})">
+                                <option value="今やる">今やる</option>
+                                <option value="今後やる" selected>今後やる</option>
+                                <option value="やらない">やらない</option>
+                            </select>
+                            <input type="date" id="choice_date_${i}" style="flex:1;">
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('choiceForm').reset();
+            deleteBtn.style.display = 'none';
+        } else {
+            deleteBtn.style.display = 'block';
+        }
+        renderBottomChoiceTable();
+    }
+
+    function handleActionChange(changedIdx) {
+        const actionVal = document.getElementById(`choice_action_${changedIdx}`).value;
+        if(actionVal === '今やる') {
+            for(let i=0; i<10; i++) {
+                if(i !== changedIdx && document.getElementById(`choice_action_${i}`).value === '今やる') {
+                    alert('「今やる」に設定できるのは1つだけです。他の選択肢を「今後やる」に変更します。');
+                    document.getElementById(`choice_action_${i}`).value = '今後やる';
+                }
+            }
+        }
+    }
+
+    function loadChoiceRecord() {
+        const id = document.getElementById('choice_target_id').value;
+        const container = document.getElementById('choices-container');
+        const deleteBtn = document.getElementById('btnDeleteChoice');
+        
+        if(!id) {
+            container.innerHTML = "";
+            for(let i=0; i<10; i++) {
+                container.innerHTML += `
+                    <div class="choice-box">
+                        <label>選択肢 ${i+1}</label>
+                        <input type="text" id="choice_text_${i}" placeholder="何ができるかの選択肢" style="margin-bottom:0.5rem;">
+                        <div style="display:flex; gap:0.5rem;">
+                            <select id="choice_action_${i}" style="flex:1;" onchange="handleActionChange(${i})">
+                                <option value="今やる">今やる</option>
+                                <option value="今後やる" selected>今後やる</option>
+                                <option value="やらない">やらない</option>
+                            </select>
+                            <input type="date" id="choice_date_${i}" style="flex:1;">
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('dep_remarks').value = '';
+            deleteBtn.style.display = 'none';
+            return;
+        }
+
+        deleteBtn.style.display = 'block';
+        const r = records.find(item => item.id === id);
+        if(!r) return;
+        
+        container.innerHTML = "";
+        r.deepen.choices.forEach((c, i) => {
+            container.innerHTML += `
+                <div class="choice-box">
+                    <label>選択肢 ${i+1}</label>
+                    <input type="text" id="choice_text_${i}" value="${c.text || ''}" placeholder="何ができるかの選択肢" style="margin-bottom:0.5rem;">
+                    <div style="display:flex; gap:0.5rem;">
+                        <select id="choice_action_${i}" style="flex:1;" onchange="handleActionChange(${i})">
+                            <option value="今やる" ${c.action === '今やる' ? 'selected' : ''}>今やる</option>
+                            <option value="今後やる" ${c.action === '今後やる' ? 'selected' : ''}>今後やる</option>
+                            <option value="やらない" ${c.action === 'やらない' ? 'selected' : ''}>やらない</option>
+                        </select>
+                        <input type="date" id="choice_date_${i}" value="${c.exec_date || ''}" style="flex:1;">
+                    </div>
+                </div>
+            `;
+        });
+        document.getElementById('dep_remarks').value = r.deepen.remarks || '';
+    }
+
+    function clearChoiceContent() {
+        const id = document.getElementById('choice_target_id').value;
+        if(!id) return;
+        if(confirm('この6・7段目の内容（すべての選択肢と備考）をクリアしますか？')) {
+            const r = records.find(item => item.id === id);
+            if(r) {
+                r.deepen.remarks = '';
+                r.deepen.choices = Array.from({length: 10}, () => ({ text: '', action: '今後やる', exec_date: '', result: '未着手', problem: '問題なし', problem_memo: '' }));
+                saveData();
+                alert('6・7段目の内容をクリアしました。');
+                loadChoiceRecord();
+                renderBottomChoiceTable();
+            }
+        }
+    }
+
+    function deleteChoiceRow(id) {
+        if(confirm('この6・7段目の選択肢と備考をクリアしますか？')) {
+            const r = records.find(item => item.id === id);
+            if(r) {
+                r.deepen.remarks = '';
+                r.deepen.choices = Array.from({length: 10}, () => ({ text: '', action: '今後やる', exec_date: '', result: '未着手', problem: '問題なし', problem_memo: '' }));
+                saveData();
+                alert('クリアしました。');
+                renderBottomChoiceTable();
+                if(document.getElementById('choice_target_id').value === id) {
+                    loadChoiceRecord();
+                }
+            }
+        }
+    }
+
+    function saveChoiceRecord(e) {
+        e.preventDefault();
+        const id = document.getElementById('choice_target_id').value;
+        if(!id) {
+            alert('対象の記録を選択してください。');
+            return;
+        }
+        const r = records.find(item => item.id === id);
+        if(!r) return;
+        r.deepen.remarks = document.getElementById('dep_remarks').value;
+        for(let i=0; i<10; i++) {
+            r.deepen.choices[i].text = document.getElementById(`choice_text_${i}`).value;
+            r.deepen.choices[i].action = document.getElementById(`choice_action_${i}`).value;
+            r.deepen.choices[i].exec_date = document.getElementById(`choice_date_${i}`).value;
+            
+            if(r.deepen.choices[i].action === '今やる' && !r.deepen.choices[i].result) {
+                r.deepen.choices[i].result = '未着手';
+            }
+        }
+        saveData();
+        alert('選択内容を保存しました！');
+
+        initChoiceDropdown();
+        renderBottomChoiceTable();
+        document.getElementById('btnDeleteChoice').style.display = 'block';
+
+        switchView('tasks');
+    }
+
+    function renderBottomChoiceTable() {
+        const tbody = document.querySelector('#bottomChoiceTable tbody');
+        if(!tbody) return;
+        tbody.innerHTML = "";
+        records.forEach(r => {
+            let activeChoices = r.deepen.choices.filter(c => c.text && c.text.trim() !== "").map(c => `${c.text}(${c.action})`).join(', ');
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${r.reg_date}</td>
+                <td>${r.title || '(無題)'}</td>
+                <td>${activeChoices ? activeChoices.slice(0, 20) + '...' : '(未)'}</td>
+                <td>${r.deepen.remarks ? r.deepen.remarks.slice(0, 15) + '...' : '(未)'}</td>
+                <td>
+                    <button onclick="jumpToChoiceEdit('${r.id}')" style="background:var(--primary); color:white; border:none; padding:0.2rem 0.5rem; border-radius:4px; cursor:pointer; font-size:0.75rem;">編集</button>
+                    <button onclick="deleteChoiceRow('${r.id}')" class="btn-delete">クリア</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function jumpToChoiceEdit(id) {
+        switchView('choice-action');
+        document.getElementById('choice_target_id').value = id;
+        loadChoiceRecord();
+    }
+
+    function renderTasksTable() {
+        const filterStatus = document.getElementById('task_filter_status').value;
+        const tbody = document.querySelector('#tasksTable tbody');
+        tbody.innerHTML = "";
+        records.forEach(r => {
+            r.deepen.choices.forEach((c, cIdx) => {
+                if (!c.text || c.text.trim() === "") return;
+
+                if(c.action === '今やる') {
+                    if(!c.result) c.result = '未着手';
+                    
+                    if(filterStatus === '未着手・未完') {
+                        if(c.result !== '未着手' && c.result !== '未完') return;
+                    } else if(filterStatus !== 'すべて') {
+                        if(c.result !== filterStatus) return;
+                    }
+
+                    let tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.reg_date}</td>
+                        <td>${r.title || '(無題)'}</td>
+                        <td>
+                            <input type="text" value="${c.text}" onchange="updateChoiceProp('${r.id}', ${cIdx}, 'text', this.value)" style="margin-bottom:0.3rem;">
+                            <input type="date" value="${c.exec_date || ''}" onchange="updateChoiceProp('${r.id}', ${cIdx}, 'exec_date', this.value)">
+                        </td>
+                        <td>
+                            <select onchange="updateChoiceProp('${r.id}', ${cIdx}, 'result', this.value)">
+                                <option value="未着手" ${c.result==='未着手'?'selected':''}>未着手</option>
+                                <option value="完了" ${c.result==='完了'?'selected':''}>完了</option>
+                                <option value="未完" ${c.result==='未完'?'selected':''}>未完</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select style="width:70px; padding:0.3rem;" onchange="updateRecordAnxiety('${r.id}', this.value)">
+                                <option value="Lv1" ${r.anxiety_level==='Lv1'?'selected':''}>Lv1</option>
+                                <option value="Lv2" ${r.anxiety_level==='Lv2'?'selected':''}>Lv2</option>
+                                <option value="Lv3" ${r.anxiety_level==='Lv3'?'selected':''}>Lv3</option>
+                                <option value="Lv4" ${r.anxiety_level==='Lv4'?'selected':''}>Lv4</option>
+                                <option value="Lv5" ${r.anxiety_level==='Lv5'?'selected':''}>Lv5</option>
+                            </select>
+                        </td>
+                        <td>
+                            <select onchange="updateChoiceProp('${r.id}', ${cIdx}, 'problem', this.value)">
+                                <option value="問題なし" ${c.problem==='問題なし'?'selected':''}>問題なし</option>
+                                <option value="問題あり" ${c.problem==='問題あり'?'selected':''}>問題あり</option>
+                                <option value="保留" ${c.problem==='保留'?'selected':''}>保留</option>
+                            </select>
+                        </td>
+                        <td><input type="text" value="${c.problem_memo||''}" placeholder="結果メモ" onchange="updateChoiceProp('${r.id}', ${cIdx}, 'problem_memo', this.value)"></td>
+                        <td><button class="btn-delete" onclick="deleteChoiceItem('${r.id}', ${cIdx})">削除</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+        });
+    }
+
+    function updateChoiceProp(recordId, cIdx, prop, val) {
+        const r = records.find(item => item.id === recordId);
+        if(r) { r.deepen.choices[cIdx][prop] = val; saveData(); }
+    }
+
+    function updateRecordAnxiety(recordId, val) {
+        const r = records.find(item => item.id === recordId);
+        if(r) { r.anxiety_level = val; saveData(); }
+    }
+
+    function deleteChoiceItem(recordId, cIdx) {
+        if(confirm('この選択肢項目を削除しますか？')) {
+            const r = records.find(item => item.id === recordId);
+            if(r) {
+                r.deepen.choices[cIdx].text = '';
+                r.deepen.choices[cIdx].action = '今後やる';
+                saveData();
+                renderTasksTable();
+                renderFutureTasksTable();
+                renderNoTasksTable();
+            }
+        }
+    }
+
+    function renderFutureTasksTable() {
+        const tbody = document.querySelector('#futureTasksTable tbody');
+        tbody.innerHTML = "";
+        let list = [];
+        records.forEach(r => {
+            r.deepen.choices.forEach((c, cIdx) => {
+                if (!c.text || c.text.trim() === "") return;
+                if(c.action === '今後やる') list.push({r, c, cIdx});
+            });
+        });
+        list.sort((a,b) => (a.c.exec_date || '9999').localeCompare(b.c.exec_date || '9999'));
+        list.forEach(item => {
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.r.reg_date}</td>
+                <td>${item.r.title || '(無題)'}</td>
+                <td><input type="text" value="${item.c.text}" onchange="updateChoiceProp('${item.r.id}', ${item.cIdx}, 'text', this.value)"><br><small style="color:#64748b;">予定: <input type="date" value="${item.c.exec_date || ''}" style="display:inline-block; width:auto; padding:0.2rem;" onchange="updateChoiceProp('${item.r.id}', ${item.cIdx}, 'exec_date', this.value)"></small></td>
+                <td>
+                    <select onchange="changeAction('${item.r.id}', ${item.cIdx}, this.value)">
+                        <option value="今後やる" selected>今後やる</option>
+                        <option value="今やる">今やる</option>
+                        <option value="やらない">やらない</option>
+                    </select>
+                </td>
+                <td><button class="btn-delete" onclick="deleteChoiceItem('${item.r.id}', ${item.cIdx})">削除</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderNoTasksTable() {
+        const tbody = document.querySelector('#noTasksTable tbody');
+        tbody.innerHTML = "";
+        records.forEach(r => {
+            r.deepen.choices.forEach((c, cIdx) => {
+                if (!c.text || c.text.trim() === "") return;
+
+                if(c.action === 'やらない') {
+                    let tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${r.reg_date}</td>
+                        <td>${r.title || '(無題)'}</td>
+                        <td><input type="text" value="${c.text}" onchange="updateChoiceProp('${r.id}', ${cIdx}, 'text', this.value)"></td>
+                        <td>
+                            <select onchange="changeAction('${r.id}', ${cIdx}, this.value)">
+                                <option value="やらない" selected>やらない</option>
+                                <option value="今やる">今やる</option>
+                                <option value="今後やる">今後やる</option>
+                            </select>
+                        </td>
+                        <td><button class="btn-delete" onclick="deleteChoiceItem('${r.id}', ${cIdx})">削除</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                }
+            });
+        });
+    }
+
+    function changeAction(recordId, cIdx, newAction) {
+        if(newAction === '今やる') {
+            let currentImayaru = false;
+            records.forEach(r => {
+                r.deepen.choices.forEach(c => { if(c.action === '今やる') currentImayaru = true; });
+            });
+            if(currentImayaru) {
+                alert('「今やる」は1つまでです。');
+                renderFutureTasksTable();
+                renderNoTasksTable();
+                return;
+            }
+        }
+        const r = records.find(item => item.id === recordId);
+        if(r) {
+            r.deepen.choices[cIdx].action = newAction;
+            if(newAction === '今やる' && !r.deepen.choices[cIdx].result) {
+                r.deepen.choices[cIdx].result = '未着手';
+            }
+            saveData();
+            renderFutureTasksTable();
+            renderNoTasksTable();
+        }
+    }
+
+    let dashChartInstance = null;
+    let chart1Instance = null, chart2Instance = null, chart3Instance = null;
+    let dashLabelsGlobal = [];
+
+    function initDashboard() {
+        if(!document.getElementById('dash_date').value) {
+            document.getElementById('dash_date').value = getJSTTodayString();
+        }
+        updateDashboard();
+    }
+
+    function updateDashboard() {
+        const anxietyFilter = document.getElementById('dash_anxiety').value;
+        const categoryFilter = document.getElementById('dash_category').value;
+        let filtered = records.filter(r => {
+            if(anxietyFilter && r.anxiety_level !== anxietyFilter) return false;
+            if(categoryFilter && r.category !== categoryFilter) return false;
+            return true;
+        });
+
+        document.getElementById('summary_total_count').textContent = filtered.length;
+        let none = 0, exist = 0, hold = 0;
+        filtered.forEach(r => {
+            r.deepen.choices.forEach(c => {
+                if (!c.text || c.text.trim() === "") return;
+                if(c.result === '完了') {
+                    if(c.problem === '問題なし') none++;
+                    if(c.problem === '問題あり') exist++;
+                    if(c.problem === '保留') hold++;
+                }
+            });
+        });
+
+        let totalRes = none + exist + hold;
+        document.getElementById('res_none').textContent = none;
+        document.getElementById('res_exist').textContent = exist;
+        document.getElementById('res_hold').textContent = hold;
+        document.getElementById('pct_none').textContent = totalRes ? Math.round(none/totalRes*100) + '%' : '0%';
+        document.getElementById('pct_exist').textContent = totalRes ? Math.round(exist/totalRes*100) + '%' : '0%';
+        document.getElementById('pct_hold').textContent = totalRes ? Math.round(hold/totalRes*100) + '%' : '0%';
+
+        const ctx = document.getElementById('dashChart').getContext('2d');
+        let dateCounts = {};
+        filtered.forEach(r => { dateCounts[r.reg_date] = (dateCounts[r.reg_date] || 0) + 1; });
+        dashLabelsGlobal = Object.keys(dateCounts).sort();
+        let data = dashLabelsGlobal.map(l => dateCounts[l]);
+
+        if(dashChartInstance) dashChartInstance.destroy();
+        dashChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: dashLabelsGlobal, datasets: [{ label: '初期登録数', data: data, backgroundColor: '#4f46e5' }] },
+            options: {
+                maintainAspectRatio: false,
+                onClick: (event, elements) => {
+                    if(elements.length > 0) {
+                        const index = elements[0].index;
+                        const clickedDate = dashLabelsGlobal[index];
+                        jumpToDateRecord(clickedDate);
+                    }
+                }
+            }
+        });
+    }
+
+    function jumpToDateRecord(dateStr) {
+        switchView('search-view');
+        document.getElementById('search_keyword').value = dateStr;
+        executeSearch();
+    }
+
+    function jumpToAnxietyRecord(anxietyLevelStr) {
+        switchView('search-view');
+        document.getElementById('search_keyword').value = anxietyLevelStr;
+        executeSearch();
+    }
+
+    function initAnalysisCharts() {
+        const periodType = document.getElementById('analysis_period').value;
+        let allDatesSet = new Set();
+        records.forEach(r => { if(r.reg_date) allDatesSet.add(r.reg_date); });
+        let sortedDates = Array.from(allDatesSet).sort();
+
+        if(sortedDates.length === 0) {
+            sortedDates = [getJSTTodayString()];
+        }
+
+        if(periodType !== 'all') {
+            const today = new Date();
+            const thresholdDate = new Date(today);
+            if(periodType === '1week') {
+                thresholdDate.setDate(today.getDate() - 7);
+            } else if(periodType === '1month') {
+                thresholdDate.setMonth(today.getMonth() - 1);
+            }
+            sortedDates = sortedDates.filter(dateStr => {
+                const d = new Date(dateStr);
+                return d >= thresholdDate;
+            });
+            if(sortedDates.length === 0) {
+                sortedDates = [getJSTTodayString()];
+            }
+        }
+
+        const ctx1 = document.getElementById('chart1').getContext('2d');
+        let unstartedData = sortedDates.map(date => countByDateAndTaskActionOrResult(date, '未着手'));
+        let futureData = sortedDates.map(date => countByDateAndTaskActionOrResult(date, '今後やる'));
+        let completedData = sortedDates.map(date => countByDateAndTaskActionOrResult(date, '完了'));
+        let failedData = sortedDates.map(date => countByDateAndTaskActionOrResult(date, '未完'));
+
+        if(chart1Instance) chart1Instance.destroy();
+        chart1Instance = new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: sortedDates,
+                datasets: [
+                    { label: '未着手', data: unstartedData, backgroundColor: '#94a3b8' },
+                    { label: '今後やる', data: futureData, backgroundColor: '#3b82f6' },
+                    { label: '完了', data: completedData, backgroundColor: '#10b981' },
+                    { label: '未完', data: failedData, backgroundColor: '#ef4444' }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                },
+                onClick: (event, elements) => {
+                    if(elements.length > 0) {
+                        const index = elements[0].index;
+                        const clickedDate = sortedDates[index];
+                        jumpToDateRecord(clickedDate);
+                    }
+                }
+            }
+        });
+
+        const ctx2 = document.getElementById('chart2').getContext('2d');
+        let noneData = sortedDates.map(date => countByDateAndProblem(date, '問題なし'));
+        let existData = sortedDates.map(date => countByDateAndProblem(date, '問題あり'));
+        let holdData = sortedDates.map(date => countByDateAndProblem(date, '保留'));
+
+        if(chart2Instance) chart2Instance.destroy();
+        chart2Instance = new Chart(ctx2, {
+            type: 'bar',
+            data: {
+                labels: sortedDates,
+                datasets: [
+                    { label: '問題なし', data: noneData, backgroundColor: '#3b82f6' },
+                    { label: '問題あり', data: existData, backgroundColor: '#f97316' },
+                    { label: '保留', data: holdData, backgroundColor: '#8b5cf6' }
+                ]
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                },
+                onClick: (event, elements) => {
+                    if(elements.length > 0) {
+                        const index = elements[0].index;
+                        const clickedDate = sortedDates[index];
+                        jumpToDateRecord(clickedDate);
+                    }
+                }
+            }
+        });
+
+        const ctx3 = document.getElementById('chart3').getContext('2d');
+        let anxietyLevels = ['Lv1', 'Lv2', 'Lv3', 'Lv4', 'Lv5'];
+        let anxietyColors = ['#93c5fd', '#3b82f6', '#f59e0b', '#f97316', '#ef4444'];
+
+        let totalAnxietySum = 0;
+        let totalAnxietyCount = 0;
+
+        let datasets3 = anxietyLevels.map((lvl, idx) => {
+            let numericVal = parseInt(lvl.replace('Lv', ''));
+            let dataArr = sortedDates.map(date => {
+                let cnt = 0;
+                records.forEach(r => {
+                    if(r.reg_date === date && r.anxiety_level === lvl) {
+                        cnt++;
+                        totalAnxietySum += numericVal;
+                        totalAnxietyCount++;
+                    }
+                });
+                return cnt;
+            });
+            return {
+                label: lvl,
+                data: dataArr,
+                backgroundColor: anxietyColors[idx]
+            };
+        });
+
+        let avgVal = totalAnxietyCount > 0 ? (totalAnxietySum / totalAnxietyCount).toFixed(1) : '0.0';
+        document.getElementById('avg_anxiety_val').textContent = avgVal;
+        document.getElementById('total_anxiety_count').textContent = totalAnxietyCount;
+
+        if(chart3Instance) chart3Instance.destroy();
+        chart3Instance = new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: sortedDates,
+                datasets: datasets3
+            },
+            options: {
+                maintainAspectRatio: false,
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true }
+                },
+                onClick: (event, elements) => {
+                    if(elements.length > 0) {
+                        const datasetIndex = elements[0].datasetIndex;
+                        const clickedAnxietyLevel = anxietyLevels[datasetIndex];
+                        jumpToAnxietyRecord(clickedAnxietyLevel);
+                    }
+                }
+            }
+        });
+    }
+
+    function countByDateAndTaskActionOrResult(dateStr, targetKey) {
+        let count = 0;
+        records.forEach(r => {
+            if(r.reg_date === dateStr) {
+                r.deepen.choices.forEach(c => {
+                    if (!c.text || c.text.trim() === "") return;
+                    
+                    if (targetKey === '今後やる') {
+                        if (c.action === '今後やる') count++;
+                    } else {
+                        if (c.action === '今やる') {
+                            let currentRes = c.result || '未着手';
+                            if (currentRes === targetKey) count++;
+                        }
+                    }
+                });
+            }
+        });
+        return count;
+    }
+
+    function countByDateAndProblem(dateStr, probName) {
+        let count = 0;
+        records.forEach(r => {
+            if(r.reg_date === dateStr) {
+                if(r.deepen.choices) {
+                    r.deepen.choices.forEach(c => {
+                        if (!c.text || c.text.trim() === "") return;
+                        if(c.action === '今やる' && c.result === '完了' && c.problem === probName) count++;
+                    });
+                }
+            }
+        });
+        return count;
+    }
+
+    initRecordDropdown();
+    renderBottomRegTable();
+</script>
+
+</body>
+</html>
